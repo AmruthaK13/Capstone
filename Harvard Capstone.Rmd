@@ -1,0 +1,232 @@
+---
+title: "Harvard Capstone"
+author: "Amrutha Killada"
+date: "5/20/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+##The tracks for this dataset have been taken from the Spotify’s Top Telugu Songs for the Year 2019 playlist. I have complied this dataset with audio features data by utilizing Spotify’s Web API – Get Audio Features for a Track available on their Spotify for Developers Website.Through this API I was able to extract the complete set of audio features of each individual track and have complied them into a dataset in Excel.##
+
+```{r}
+#Libraries needed
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(readr)) install.packages("readr", repos = "https://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if(!require(ggplot2)) install.packages("ggplot2", repos = "https://cran.us.r-project.org")
+if(!require(formattable)) install.packages("formattable", repos = "http://cran.us.r-project.org")
+if(!require(RWeka)) install.packages("RWeka", repos = "http://cran.us.r-project.org")
+if(!require(qdap)) install.packages("qdap", repos = "https://cran.us.r-project.org")
+if(!require(tm)) install.packages("tm", repos = "http://cran.us.r-project.org")
+if(!require(readxl)) install.packages("readxl", repos = "http://cran.us.r-project.org")
+if(!require(tibble)) install.packages("tibble", repos = "https://cran.us.r-project.org")
+if(!require(corrplot)) install.packages("corrplot", repos = "https://cran.us.r-project.org")
+if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
+if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org")
+if(!require(plyr)) install.packages("plyr", repos = "http://cran.us.r-project.org")
+```
+##Loading the data##
+```{r}
+Spotify_Telugu <- read_excel("Documents/Right now/Spotify Telugu.xlsx")
+```
+##Summary Statistics##
+```{r}
+head(Spotify_Telugu)
+summary(Spotify_Telugu)
+```
+##To understand the strength of a relationship between these variables will help us in understanding why certain tracks are more popular than the other.##
+```{r}
+#Correlation between variables
+Spotify_Telugu_num <- Spotify_Telugu[,-(1:3)]
+MCor <- cor(Spotify_Telugu_num)
+MCor
+corrplot(MCor, method = "ellipse")
+```
+##We observe that Danceability, Loudness, Speechiness, and Valence are positively correlated.We see that Danceability and Valence are highly correlated, which suggests that they are Happy songs which make people Dance, considering that Valence measures the positivity of a sound track and Danceability describes the how suitable the sound track is for dancing.We also see that Speechiness and Loudness are positively correlated too.##
+```{r}
+#Density of the correlation
+correlated_density <- ggplot(Spotify_Telugu) +
+  geom_density(aes(Danceability, fill = "Danceability", alpha = 0.1)) +
+  geom_density(aes(Valence, fill = "Valence", alpha = 0.1)) +
+  geom_density(aes(Loudness, fill = "Loudness", alpha = 0.1)) +
+  geom_density(aes(Speechiness, fill = "Speechiness", alpha = 0.1)) +
+  scale_x_continuous(name = "Danceability, Valence, Speechiness, Loudness") +
+  scale_y_continuous(name = "Density") +
+  ggtitle("Density plot of Danceability, Valence, Speechiness, Loudness") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+        text = element_text(size = 12)) +
+  theme(legend.title = element_blank()) +
+  scale_fill_brewer(palette="Accent")
+correlated_density
+```
+##This will allow us to see how these variables are distributed over the songs in the playlist##
+```{r}
+#Data visualization 
+#Danceability
+ggplot(Spotify_Telugu, aes(x = Danceability)) + geom_histogram(bins = 25) + theme_minimal()
+```
+##We see that there are many tracks in the playlist that have high Danceability, which might suggest that Telugu population likes tracks with Danceability in the year 2019.##
+```{r}
+#Loudness
+ggplot(Spotify_Telugu, aes(x = Loudness)) + geom_histogram(bins = 25) + theme_minimal()
+```
+##We see that many tracks on this playlist have high Loudness, which in turn might suggest that the Telugu population like tracks with high Loudness in the year 2019.##
+```{r}
+#Speechiness
+ggplot(Spotify_Telugu, aes(x = Speechiness)) + geom_histogram(bins = 25) + theme_minimal()
+```
+##We see that a high number of songs have less Speechiness in their tracks, which might suggest that Telugu population do not like songs in the Rap genre in the year 2019.##
+```{r}
+#Valence
+ggplot(Spotify_Telugu, aes(x = Valence)) + geom_histogram(bins = 25) + theme_minimal()
+```
+##We see that Telugu population like happy songs more than sad songs in the year 2019.##
+##Popular Artists of Telugu in the year 2019##
+##We derive this by calculating the number of times artists appears in this playlist##
+```{r}
+#Popular Artists 
+Top_Artists <- Spotify_Telugu %>%
+  group_by(Artists) %>%
+  summarise(n_apperance = n()) %>%
+  filter(n_apperance > 1) %>%
+  arrange(desc(n_apperance))
+Top_Artists$Artists <- factor(Top_Artists$Artists, levels = Top_Artists$Artists [order(Top_Artists$n_apperance)])
+head(Top_Artists,10)
+ggplot(Top_Artists, aes(x = Artists, y = n_apperance)) +
+  geom_bar(stat = "identity", fill = "blue", width = 0.6) +
+  labs(title = "Popular Telugu Artists of 2019", x = "Artists", y = "Number of Apperances in the list") +
+  theme(plot.title = element_text(size=15, hjust=-3, face = "bold"), axis.title = element_text(size=12)) +
+  geom_text(aes(label=n_apperance), hjust=2, size = 3, color = 'white') +
+  coord_flip()
+```
+##We see that Anurag Kulkarni, Sid Sriram and Anirudh Ravichander are the popular artists for the year 2019 in Telugu.##
+##Interestingly Sid Sriram and Anirudh Ravichander both do not speak Telugu as their first language and are from the neighboring state of Tamil Nadu where Tamil is the predominantly the most spoken language yet they are really popular with the Telugu audience.##
+```{r}
+#Artists with more than 2 songs on the list
+A1 <- group_by(Spotify_Telugu, Artists)
+A2 <- dplyr::summarise(A1, count=n())
+A2 <- arrange(A2, desc(count))
+A3 <- filter(A2, count>1)
+AP1 <- ggplot(A3, aes(x = reorder(Artists, count), y = count)) +
+  geom_bar(aes(y = count, fill = Artists), stat = "identity") +
+  labs(x = "Artists", y = "Number of Songs",
+       title = "Artists with more than 2 songs") + theme(legend.position = "none", axis.text.x = element_text(angle = 60, hjust = 1))
+AP1
+```
+```{r}
+#Popular Albums
+Top_Albums <- Spotify_Telugu %>%
+  group_by(Album) %>%
+  summarise(n_apperance = n()) %>%
+  filter(n_apperance > 1) %>%
+  arrange(desc(n_apperance))
+Top_Albums$Album <- factor(Top_Albums$Album, levels = Top_Albums$Album [order(Top_Albums$n_apperance)])
+head(Top_Albums, 10)
+ggplot(Top_Albums, aes(x = Album, y = n_apperance)) +
+  geom_bar(stat = "identity" , fill = "red", width = 0.6) +
+  labs(title = "Popular Telugu Albums of 2019", x = "Albums", y = "Number of Apperances in the list") +
+  theme(plot.title = element_text(size=15, hjust=-3, face = "bold"), axis.title = element_text(size=12)) +
+  geom_text(aes(label=n_apperance), hjust=2, size = 3, color = 'white') +
+  coord_flip()
+```
+##We see that the popular Albums are Maharshi, Dear Comrade, and Oh Baby.It is interesting to understand that Indian Music Industry and Movie industry are extremely inter dependent on each other. Considering All the Albums in the playlists are sound tracks of movies they are part of.Maharshi, Dear Comrade and Oh Baby are all Telugu Movies in 2019.##
+```{r}
+#Consolidating all the numerical values of features 
+Spotify_Telugu_num_norm <- sapply(Spotify_Telugu_num, scale)
+summary(Spotify_Telugu_num_norm)
+```
+```{r}
+#Common keys among the songs
+Spotify_Telugu$Key <- as.character(Spotify_Telugu$Key)
+Spotify_Telugu$Key <- revalue(Spotify_Telugu$Key, c("0" = "C","1" = "C♯,D♭", "2" = "D", "3" = "D♯,E♭","4" = "E", "5" = "F", "6" = "F♯,G♭", "7" = "G", "8" = "G♯,A♭", "9" = "A", "10" = "A♯,B♭", "11" = "B"))
+song_keys <- Spotify_Telugu %>%
+  group_by(Key) %>%
+  summarise(n_key = n()) %>%
+  arrange(desc(n_key))
+song_keys$Key <- factor(song_keys$Key, levels = song_keys$Key[order(song_keys$n_key)])
+#Plot the keys
+ggplot(song_keys, aes(x = reorder(Key, -n_key), y = n_key, fill = reorder(Key, -n_key))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribution of keys of the top telugu songs", x = "Keys", y = "Count of Keys on the Top songs") +
+  geom_text(aes(label=n_key), position = position_stack(vjust=0.8)) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 15, face = "bold"), axis.title = element_text(size=12)) +
+  theme(legend.position = "none")
+```
+##We see that the most common keys are C, C#D and D.##
+##We build a logistic regression model that predicts the artists given the features of songs, using multiple independent variables such as Danceability, Energy, Valance and such.In order to run a logistic regression in R we use ‘glm’ – generalized linear model function whose syntax is of the function similar to a linear regression. But with specifying ‘binomial’ for the family argument we will be able to treat glm function as a dependent variable as binary.We make sure that the outcome (Artist) is a factor.##
+```{r}
+Spotify_Telugu$Artists <- as.factor(Spotify_Telugu$Artists)
+Spotify_Telugu <- Spotify_Telugu %>%
+  select(Artists, Danceability, Valence, Speechiness, Loudness)
+mp_siz = floor(0.80*nrow(Spotify_Telugu))
+set.seed(123)
+train_data = sample(seq_len(nrow(Spotify_Telugu)), size = smp_siz)
+train = Spotify_Telugu[train_data,]
+test = Spotify_Telugu[-train_data,]
+test$Artists <- as.factor(test$Artists)
+train$Artists <- as.factor(train$Artists)
+```
+##Now we train a logistic regression model on the training data and analyze the output.##
+```{r}
+logit_Spotify <- glm(Artists ~ Danceability + Valence , data = train, family = "binomial")
+summary(logit_Spotify)
+```
+##The coefficients of the model are used to inspect the strength of association between variables. We use logistic regression to predict the Artist on testing data.##
+```{r}
+attach(test)
+pdata <- predict(logit_Spotify, newdata = test, type = "response")
+pdata = ifelse(pdata > .5, 1, 0)
+table(pdata, test$Artists)
+```
+##We have built a logistic regression model that evaluates how the predictors of Danceability and Valence contribute to the probability of a song being from each artist in the playlist. We then used this same model to predict the Artist for songs in the testing set.##
+```{r}
+#Average model Danceability
+mu <- mean(train$Danceability)
+mu
+basic_rmse_dancebility <- RMSE(test$Danceability, mu)
+basic_rmse_dancebility
+```
+```{r}
+##Average model Loudness
+basic_rmse_loudness <- RMSE(test$Loudness, mu)
+basic_rmse_loudness
+
+#Average model Valence
+basic_rmse_valence <- RMSE(test$Valence, mu)
+basic_rmse_valence
+
+#Average model Speechiness
+basic_rmse_speechiness <- RMSE(test$Speechiness, mu)
+basic_rmse_speechiness
+
+```
+##In this project we have successfully implemented learning concepts from all the previous courses in the Data Science Professional Certificate Program. We have created visualizations and analyzed the data for any insights. We have also built a logistic regression model and also developed a Machine Learning algorithm to predict the artists based on variables of audio features of Danceability and Valence.##
+
